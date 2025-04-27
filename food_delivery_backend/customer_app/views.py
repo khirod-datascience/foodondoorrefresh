@@ -39,6 +39,7 @@ from rest_framework.generics import ListAPIView
 from accounts.models import CustomerProfile # Import CustomerProfile
 from customer_app.utils import get_jwt_tokens_for_customer
 from .serializers import FoodListingSerializer
+from django.utils import timezone
 
 logger = logging.getLogger('customer_app')
 
@@ -590,41 +591,92 @@ class OrderDetailView(APIView):
 
 
 class HomeDataView(APIView):
-    authentication_classes = [CustomerJWTAuthentication] # Corrected authentication class
+    authentication_classes = [CustomerJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        print(request.data)
-        print("HomeDataView accessed by:", request.user) # Add print statement for debugging
         try:
-            # print(BannerSerializer(Banner.objects.filter(is_active=True), many=True).data)
-            # Use VendorSerializer instead of RestaurantSerializer
-            # Add nearby_restaurants using VendorSerializer
+            # --- Pagination params ---
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 10))
+            offset = (page - 1) * page_size
+            limit = offset + page_size
+
+            # --- Location filter (optional) ---
+            lat = request.GET.get('lat')
+            lng = request.GET.get('lng')
+            location_filter = lat is not None and lng is not None
+
+            vendors_qs = Vendor.objects.filter(is_active=True)
+            if location_filter:
+                try:
+                    lat = float(lat)
+                    lng = float(lng)
+                except (TypeError, ValueError):
+                    return Response({'error': 'Invalid latitude or longitude'}, status=status.HTTP_400_BAD_REQUEST)
+                user_location = (lat, lng)
+                # Filter by distance (within 5km)
+                def within_5km(vendor):
+                    if vendor.latitude is None or vendor.longitude is None:
+                        return False
+                    return geodesic(user_location, (vendor.latitude, vendor.longitude)).km <= 5
+                vendors_qs = [v for v in vendors_qs if within_5km(v)]
+            else:
+                vendors_qs = list(vendors_qs)
+
+            # --- Open/Closed status ---
+            now = timezone.now().time()
+            def is_open(vendor):
+                if not vendor.open_hours:
+                    return True # Assume open if not set
+                try:
+                    # Expect format: "09:00-22:00"
+                    open_str, close_str = vendor.open_hours.split('-')
+                    open_time = timezone.datetime.strptime(open_str.strip(), "%H:%M").time()
+                    close_time = timezone.datetime.strptime(close_str.strip(), "%H:%M").time()
+                    if open_time < close_time:
+                        return open_time <= now <= close_time
+                    else: # Overnight
+                        return now >= open_time or now <= close_time
+                except Exception:
+                    return True
+
+            # Add is_open to each vendor dict
+            paginated_vendors = vendors_qs[offset:limit]
+            vendor_data = VendorSerializer(paginated_vendors, many=True, context={'request': request}).data
+            for i, vendor in enumerate(paginated_vendors):
+                vendor_data[i]['is_open'] = is_open(vendor)
+
             data = {
                 'banners': BannerSerializer(Banner.objects.filter(is_active=True), many=True, context={'request': request}).data,
-                # Use FoodCategorySerializer as CategorySerializer does not exist
                 'categories': FoodCategorySerializer(FoodCategory.objects.filter(is_active=True), many=True, context={'request': request}).data,
-                # Keep food_categories key as well, in case it's used elsewhere
                 'food_categories': FoodCategorySerializer(FoodCategory.objects.filter(is_active=True), many=True, context={'request': request}).data,
                 'popular_foods': FoodListingSerializer(
                     FoodListing.objects.filter(is_available=True).order_by('-created_at')[:10],
                     many=True,
                     context={'request': request}
                 ).data,
-                'top_rated_restaurants': VendorSerializer( # Use VendorSerializer
-                    Vendor.objects.filter(is_active=True).order_by('-rating')[:10],
+                'top_rated_restaurants': VendorSerializer(
+                    sorted(vendors_qs, key=lambda v: v.rating, reverse=True)[:10],
                     many=True,
-                    context={'request': request} # Add context
+                    context={'request': request}
                 ).data,
-                'nearby_restaurants': VendorSerializer( # Add nearby restaurants
-                    Vendor.objects.filter(is_active=True).order_by('?')[:10], # Fetch first 10 active for now
+                'nearby_restaurants': VendorSerializer(
+                    vendors_qs[:10],
                     many=True,
-                    context={'request': request} # Add context
+                    context={'request': request}
                 ).data,
+                'restaurants': vendor_data,
+                'pagination': {
+                    'page': page,
+                    'page_size': page_size,
+                    'total': len(vendors_qs),
+                    'total_pages': (len(vendors_qs) + page_size - 1) // page_size
+                }
             }
             return Response(data)
         except Exception as e:
-            logger.error(f"Error in HomeDataView: {str(e)}\n{traceback.format_exc()}") # Log traceback
+            logger.error(f"Error in HomeDataView: {str(e)}\n{traceback.format_exc()}")
             return Response({'error': 'An internal error occurred'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class HomeBannersView(ListAPIView):

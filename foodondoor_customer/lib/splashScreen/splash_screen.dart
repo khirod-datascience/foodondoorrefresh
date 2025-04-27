@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../authentication/auth_screen.dart';
 import '../mainScreens/home_screen.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 
 class MySplashScreen extends StatefulWidget {
@@ -36,7 +38,14 @@ class _MySplashScreenState extends State<MySplashScreen> {
   @override
   void initState() {
     super.initState();
-    startTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider._loadAuthState();
+      if (!authProvider.isAuthenticated) {
+        await authProvider.requestOtpAndLoginIfNeeded(context);
+      }
+      startTimer();
+    });
   }
 
   @override

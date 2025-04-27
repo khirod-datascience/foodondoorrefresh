@@ -43,8 +43,10 @@ class HomeProvider extends ChangeNotifier {
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final token = authProvider.token;
+      debugPrint('[HomeProvider] initializeHomeScreen using token: \u001b[32m$token\u001b[0m');
       if (token == null) {
         error = 'Authentication required.';
+        debugPrint('[HomeProvider] ERROR: No token found, authentication required.');
         isLoading = false;
         notifyListeners();
         return;
@@ -97,6 +99,7 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchBanners(String token) async {
+    debugPrint('[HomeProvider] fetchBanners using token: \u001b[32m$token\u001b[0m');
     try {
       debugPrint('(HomeProvider) Fetching banners...');
       final response = await _dio.get('${AppConfig.baseUrl}/banners/', options: Options(headers: {'Authorization': 'Bearer $token'}));
@@ -124,6 +127,7 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchCategories(String token) async {
+    debugPrint('[HomeProvider] fetchCategories using token: \u001b[32m$token\u001b[0m');
     final String url = '${AppConfig.baseUrl}/categories/';
     try {
       debugPrint('(HomeProvider) Fetching categories from URL: $url');
@@ -164,6 +168,7 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchNearbyRestaurants(String token) async {
+    debugPrint('[HomeProvider] fetchNearbyRestaurants using token: \u001b[32m$token\u001b[0m');
     try {
       debugPrint('(HomeProvider) Fetching nearby restaurants...');
       final response = await _dio.get('${AppConfig.baseUrl}/nearby-restaurants/', options: Options(headers: {'Authorization': 'Bearer $token'}));
@@ -194,6 +199,7 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchTopRatedRestaurants(String token) async {
+    debugPrint('[HomeProvider] fetchTopRatedRestaurants using token: \u001b[32m$token\u001b[0m');
     try {
       debugPrint('(HomeProvider) Fetching top-rated restaurants...');
       final response = await _dio.get('${AppConfig.baseUrl}/top-rated-restaurants/', options: Options(headers: {'Authorization': 'Bearer $token'}));
@@ -224,6 +230,7 @@ class HomeProvider extends ChangeNotifier {
   }
 
   Future<void> fetchPopularFoodItems(String token) async {
+    debugPrint('[HomeProvider] fetchPopularFoodItems using token: \u001b[32m$token\u001b[0m');
     try {
       debugPrint('(HomeProvider) Fetching popular food items...');
       final response = await _dio.get('${AppConfig.baseUrl}/popular-foods/', options: Options(headers: {'Authorization': 'Bearer $token'}));
