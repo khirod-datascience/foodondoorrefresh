@@ -63,7 +63,7 @@ class VendorProfileSerializer(serializers.ModelSerializer):
         fields = [
             'vendor_id', 'phone', 'restaurant_name', 'email',
             'address', 'contact_number', 'uploaded_images', 'open_hours',
-            'is_active', 'rating', 'latitude', 'longitude', 'pincode',
+            'is_active', 'is_open', 'opening_time', 'closing_time', 'rating', 'latitude', 'longitude', 'pincode',
             'cuisine_type', 'fcm_token', # Allow updating FCM token
             'created_at', 'updated_at'
         ]

@@ -12,7 +12,7 @@ class HomeProvider extends ChangeNotifier {
   final Dio _dio = Dio();
   bool isLoading = true;
   String? error;
-  List<String> banners = [];
+  List<Map<String, dynamic>> banners = [];
   List<Map<String, dynamic>> categories = [];
   List<Map<String, dynamic>> nearbyRestaurants = [];
   List<Map<String, dynamic>> topRatedRestaurants = [];
@@ -107,20 +107,34 @@ class HomeProvider extends ChangeNotifier {
       
       if (response.statusCode == 200) {
         if (response.data is List) {
-          banners = List<String>.from(response.data.where((item) => item != null));
-        } else if (response.data['banners'] is List) {
-          banners = List<String>.from(response.data['banners'].where((item) => item != null));
+          final List<dynamic> data = response.data;
+          banners = data.map((item) {
+            if (item is Map<String, dynamic>) {
+              // Assuming the banner image URL is in the 'image' key
+              // Ensure the image value is treated as a string
+              final bannerData = Map<String, dynamic>.from(item);
+              if (bannerData['image'] == null || bannerData['image'].toString().isEmpty) {
+                // Provide a default placeholder if image is missing
+                bannerData['image'] = 'https://placehold.co/600x200/EAEAEA/6D6D6D.png?text=Banner'; 
+              }
+              return bannerData;
+            } else {
+              // Handle cases where item is not a map, return an empty map or default
+              debugPrint('(HomeProvider) Unexpected item type in banners list: ${item.runtimeType}');
+              return <String, dynamic>{'image': 'https://placehold.co/600x200/EAEAEA/6D6D6D.png?text=Invalid+Banner'}; 
+            }
+          }).toList();
         } else {
-          debugPrint('(HomeProvider) Unexpected banners response format');
+          debugPrint('(HomeProvider) Unexpected response format for banners');
           banners = [];
         }
       } else {
-        debugPrint('(HomeProvider) Banners API returned status ${response.statusCode}');
+        debugPrint('(HomeProvider) Failed to fetch banners: ${response.statusCode}');
         banners = [];
       }
       debugPrint('(HomeProvider) Banners fetched: ${banners.length}');
-    } catch (e) {
-      debugPrint('(HomeProvider) Error fetching banners: $e');
+    } catch (e, stacktrace) {
+      debugPrint('(HomeProvider) Error fetching banners: $e\n$stacktrace'); 
       banners = [];
       rethrow;
     }

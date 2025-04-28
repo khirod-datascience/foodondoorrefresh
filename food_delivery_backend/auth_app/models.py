@@ -31,6 +31,11 @@ class Vendor(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    # Add open/closed status field
+    is_open = models.BooleanField(default=True, help_text="Is the restaurant currently open?")
+    # Optionally, add fields for more granular control
+    opening_time = models.TimeField(null=True, blank=True, help_text="Opening time (optional)")
+    closing_time = models.TimeField(null=True, blank=True, help_text="Closing time (optional)")
 
     # Remove Django auth fields: is_staff, date_joined, groups, user_permissions
     # Remove USERNAME_FIELD, REQUIRED_FIELDS, objects = VendorManager()

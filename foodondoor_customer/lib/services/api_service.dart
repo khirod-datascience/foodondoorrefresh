@@ -412,13 +412,12 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> registerCustomer(String name, String email) async {
-    // Auth token is not included, but CookieManager sends the session cookie
-    // received from verifyOtp automatically.
-    return await post(
-      '/customer_auth/register/', 
-      {'name': name, 'email': email},
-      includeAuth: false // No bearer token needed, session cookie is used
-    );
+    // Registration usually doesn't require a Bearer token; the backend
+    // should link it to the session/phone verified via OTP.
+    return await post('/register/', {
+      'full_name': name,
+      'email': email
+    }, includeAuth: false); // Changed from true to false
   }
 
   // Method to get the auth token
@@ -435,7 +434,7 @@ class ApiService {
 
     try {
       final response = await _dio.get(
-        '/api/addresses/',
+        '/api/addresses/', // Reverted endpoint
         options: Options(
           headers: {
             'Authorization': 'Bearer $token',
@@ -498,8 +497,13 @@ class ApiService {
       throw Exception('Authentication token not found.');
     }
 
+    // Log the request details
+    debugPrint('Adding new address at: ${_dio.options.baseUrl}/api/addresses/ with data: $addressData'); 
+
+    debugPrint('Authorization Token for Add Address: Bearer $token');
+
     final response = await _dio.post(
-      '/api/addresses/', // Endpoint for adding address (fixed)
+      '/api/addresses/', // Reverted endpoint
       data: addressData,
       options: Options(
         headers: {

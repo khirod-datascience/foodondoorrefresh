@@ -192,49 +192,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadUserData,
-        color: Colors.orange,
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            // --- Customer Details Section ---
-            _buildSectionTitle('Account Details'),
-            _buildCustomerDetailsSection(),
-            const SizedBox(height: 24),
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView(
+              children: [
+                // --- Customer Details Section ---
+                _buildCustomerDetailsSection(),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
 
-            // --- Saved Addresses Section ---
-            _buildSavedAddressesSection(authProvider),
-            const SizedBox(height: 32),
+                // --- Saved Addresses Section ---
+                _buildSavedAddressesSection(authProvider),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
 
-            // --- Orders Section ---
-            ListTile(
-              leading: const Icon(Icons.shopping_bag_outlined, color: Colors.orange),
-              title: const Text('My Orders'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const OrdersScreen()),
-                );
-              },
-            ),
-
-            // --- Logout Button ---
-            Center(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.logout),
-                label: const Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                // --- Orders Section ---
+                ListTile(
+                  leading: const Icon(Icons.shopping_bag_outlined, color: Colors.orange),
+                  title: const Text('My Orders'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const OrdersScreen()),
+                    );
+                  },
                 ),
-                onPressed: _logout,
-              ),
-             ),
-             const SizedBox(height: 20),
-          ],
-        ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+
+                // --- Sign Out Button ---
+                ListTile(
+                  leading: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+                  title: const Text('Sign Out'),
+                  onTap: _logout, // Call the existing logout method
+                ),
+                const SizedBox(height: 20), // Add some spacing at the bottom
+              ],
+            ),
+          );
+        },
       ),
     );
   }

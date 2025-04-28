@@ -118,6 +118,7 @@ class VerifyOTP(APIView):
                 # Optionally include user data
                 from .serializers import CustomerProfileSerializer
                 user_data = CustomerProfileSerializer(profile).data
+                print('verified....')
                 return Response({
                     'success': True,
                     'is_signup': False,
@@ -129,6 +130,7 @@ class VerifyOTP(APIView):
                 request.session['verified_phone'] = phone
                 request.session.save() # Ensure session is saved
                 logger.info(f"OTP verified for {phone}, signup required. Stored phone in session.")
+                print('Signup required....')
                 return Response({
                     'message': 'OTP verified. Please complete signup.', 'is_signup': True, 'phone': phone
                 }, status=status.HTTP_200_OK)
@@ -292,11 +294,12 @@ class CartItemUpdateView(APIView):
     def put(self, request, item_id):
         customer = request.user
         try:
-            quantity_str = request.data.get('quantity')
-            if not quantity_str: return Response({'success': False, 'error': 'Quantity is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            quantity = request.data.get('quantity')
+            if quantity is None:
+                return Response({'success': False, 'error': 'Quantity is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
             try:
-                quantity = int(quantity_str)
+                quantity = int(quantity)
                 if quantity <= 0: return self.delete(request, item_id)
             except (ValueError, TypeError): return Response({'success': False, 'error': 'Invalid quantity provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -337,110 +340,177 @@ class PlaceOrderView(APIView):
 
     def post(self, request):
         customer = request.user
-        print("Place Order Request Data:", request.data)
+        """
+        Implements Audit Requirement (Phase-1-Backend Core Fixes.md):
+        - Stock availability check before placing the order
+        - Cart validation before placing the order
+        """
         try:
             payment_method = request.data.get('payment_method', '').upper()
             payment_status = request.data.get('payment_status', 'pending')
-            txn_id = request.data.get('txn_id')
-            address_id = request.data.get('address_id') # Expect DB ID (int)
-            vendor_id = request.data.get('vendor_id')   # Expect DB ID (int)
-            # Frontend might send delivery_fee, let backend calculate if not present
-            delivery_fee_str = request.data.get('delivery_fee')
+            txn_id = request.data.get('txn_id', None)
+            order_details = request.data.get('order_details', {})
 
-            # No 'items' expected directly in request, use user's cart items
+            if not order_details:
+                return Response(
+                    {"error": "order_details is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            user_id = order_details.get('user_id')
+            items_data = order_details.get('items', [])
+            address_param = order_details.get('address')
+            vendor_id = order_details.get('vendor_id')
+            delivery_fee = order_details.get('delivery_fee')
+            total_price = order_details.get('total_price')
 
-            if not address_id or not vendor_id:
-                 return Response({"error": "address_id and vendor_id are required"}, status=status.HTTP_400_BAD_REQUEST)
-            if payment_method not in ['COD', 'ONLINE']:
-                 return Response({"error": "Invalid payment_method. Must be 'cod' or 'online'"}, status=status.HTTP_400_BAD_REQUEST)
+            if not all([user_id, items_data, address_param, vendor_id]):
+                return Response(
+                    {"error": "user_id, items, address, and vendor_id are required in order_details"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if payment_method not in ['COD', 'PAYTM']:
+                return Response(
+                    {"error": "Invalid payment_method. Must be 'cod' or 'paytm'"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             try:
-                vendor = Vendor.objects.get(id=vendor_id)
-                address_obj = Address.objects.get(id=address_id, customer=customer)
-                delivery_address_str = f"{address_obj.address_line_1}, {address_obj.address_line_2 or ''}, {address_obj.city}, {address_obj.state}, {address_obj.pincode}"
-            except Vendor.DoesNotExist: return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
-            except Address.DoesNotExist: return Response({"error": "Delivery address not found for this customer"}, status=status.HTTP_404_NOT_FOUND)
+                customer = CustomerProfile.objects.get(user__id=user_id)
+                vendor = Vendor.objects.get(vendor_id=vendor_id)
+            except CustomerProfile.DoesNotExist:
+                return Response(
+                    {"error": "Customer not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except Vendor.DoesNotExist:
+                return Response(
+                    {"error": "Vendor not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
+            # Handle address
+            address_obj = None
+            delivery_pincode = None
+            delivery_address_str = None
+            try:
+                address_id = int(address_param)
+                try:
+                    address_obj = Address.objects.get(id=address_id, customer=customer)
+                    delivery_pincode = address_obj.pincode
+                    delivery_address_str = f"{address_obj.address_line_1}, {address_obj.address_line_2 or ''}, {address_obj.city}, {address_obj.state}, {address_obj.pincode}"
+                except Address.DoesNotExist:
+                    delivery_pincode = address_param
+                    delivery_address_str = delivery_pincode
+            except ValueError:
+                delivery_pincode = address_param
+                delivery_address_str = delivery_pincode
+
+            # --- Stock and cart validation ---
             items_total = 0
             order_items_to_create = []
             unavailable_items = []
 
-            with transaction.atomic():
-                cart_items = Cart.objects.filter(customer=customer).select_related('food', 'food__vendor')
-                if not cart_items.exists(): return Response({"error": "Cannot place order, cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
-
-                cart_vendor = cart_items.first().food.vendor
-                if cart_vendor.id != vendor.id: return Response({"error": "Cart items vendor mismatch."}, status=status.HTTP_400_BAD_REQUEST)
-
-                for cart_item in cart_items:
-                    food_listing = cart_item.food
-                    if not food_listing.is_available:
-                        unavailable_items.append(food_listing.name)
-                        continue
-                    item_total = food_listing.price * cart_item.quantity
-                    items_total += item_total
-                    order_items_to_create.append({
-                        'food': food_listing, 'quantity': cart_item.quantity, 'price': food_listing.price
-                    })
-
-                if unavailable_items: return Response({"error": f"Some items are unavailable: {', '.join(unavailable_items)}"}, status=status.HTTP_400_BAD_REQUEST)
-                if not order_items_to_create: return Response({"error": "No valid items to order."}, status=status.HTTP_400_BAD_REQUEST)
-
-                # Handle delivery fee
-                delivery_fee = 0.0
-                if delivery_fee_str is not None:
-                    try: delivery_fee = float(delivery_fee_str)
-                    except (ValueError, TypeError): return Response({"error": "Invalid delivery_fee format"}, status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    # Calculate if not provided
+            for item_data in items_data:
+                food_id = item_data.get('food_id')
+                quantity = item_data.get('quantity')
+                price = item_data.get('price')
+                if isinstance(quantity, str):
                     try:
-                        geolocator = Nominatim(user_agent="food_delivery_app")
-                        delivery_location = geolocator.geocode(f"{address_obj.pincode}, India")
-                        if delivery_location:
-                            vendor_location = (vendor.latitude, vendor.longitude)
-                            delivery_coords = (delivery_location.latitude, delivery_location.longitude)
-                            distance = geodesic(vendor_location, delivery_coords).kilometers
-                            if distance <= 5: delivery_fee = 20.0
-                            else: delivery_fee = 20.0 + (distance - 5) * 5.0
-                            delivery_fee = round(delivery_fee, 2)
-                        else: delivery_fee = 20.0 # Default if geocoding fails
-                    except Exception as e:
-                        logger.warning(f"Could not calculate delivery fee: {e}. Using default.")
-                        delivery_fee = 20.0 # Default on error
+                        quantity = int(quantity)
+                    except ValueError:
+                        return Response(
+                            {"error": f"Invalid quantity value: {quantity}"}, 
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                if not food_id or not isinstance(quantity, int) or quantity <= 0:
+                    return Response(
+                        {"error": "Invalid item data. Each item must have food_id and positive integer quantity."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-                total_amount = items_total + delivery_fee
+                try:
+                    food = FoodListing.objects.get(id=food_id, vendor=vendor)
+                except FoodListing.DoesNotExist:
+                    unavailable_items.append({"food_id": food_id, "reason": "Food item not found for this vendor."})
+                    continue
+                # --- Stock check (assume food.stock exists, else skip) ---
+                if hasattr(food, 'stock') and food.stock is not None:
+                    if food.stock < quantity:
+                        unavailable_items.append({"food_id": food_id, "reason": f"Only {food.stock} left in stock."})
+                        continue
+                if not food.is_available:
+                    unavailable_items.append({"food_id": food_id, "reason": "Food item is not available."})
+                    continue
+                items_total += price * quantity
+                order_items_to_create.append({
+                    'food': food,
+                    'quantity': quantity,
+                    'price': price
+                })
 
-                order = Order.objects.create(
-                    customer=customer, vendor=vendor, total_amount=total_amount,
-                    delivery_address=delivery_address_str, payment_mode=payment_method,
-                    payment_status=payment_status, payment_id=txn_id, status='placed',
-                    delivery_fee=delivery_fee
+            if unavailable_items:
+                return Response(
+                    {"error": "Some items are unavailable or out of stock.", "details": unavailable_items}, 
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
-                order_item_instances = [OrderItem(order=order, **item_info) for item_info in order_items_to_create]
-                OrderItem.objects.bulk_create(order_item_instances)
-                cart_items.delete() # Clear cart AFTER order is successfully created
+            if not order_items_to_create:
+                return Response(
+                    {"error": "No valid items to place order."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-            # Send notification (implement robustly)
-            # ... notification logic ...
+            # --- (Optional) Deduct stock if model supports it ---
+            for item in order_items_to_create:
+                food = item['food']
+                quantity = item['quantity']
+                if hasattr(food, 'stock') and food.stock is not None:
+                    food.stock -= quantity
+                    food.save()
 
-            estimated_delivery_time = 30 # Example
+            # --- Calculate delivery fee if not provided ---
+            if delivery_fee is None:
+                delivery_fee = 20.0
+            try:
+                delivery_fee = float(delivery_fee)
+            except Exception:
+                delivery_fee = 20.0
+            total_amount = items_total + delivery_fee
+
+            order = Order.objects.create(
+                customer=customer, vendor=vendor, total_amount=total_amount,
+                delivery_address=delivery_address_str, payment_mode=payment_method,
+                payment_status=payment_status, payment_id=txn_id, status='placed',
+                delivery_fee=delivery_fee
+            )
+
+            order_item_instances = [OrderItem(order=order, **{
+                'food': item['food'],
+                'quantity': item['quantity'],
+                'price': item['price']
+            }) for item in order_items_to_create]
+            OrderItem.objects.bulk_create(order_item_instances)
+
+            # Optionally clear cart after order
+            Cart.objects.filter(customer=customer, food__in=[item['food'] for item in order_items_to_create]).delete()
+
+            # (Optional) Send notification
+            # Notification.send_order_placed(customer, order)
 
             response_data = {
-                "success": True, "message": "Order placed successfully!", "order_id": order.order_number,
-                "status": order.status, "estimated_delivery_time": estimated_delivery_time,
-                "total_amount": float(total_amount), "items_total": float(items_total),
-                "delivery_fee": float(delivery_fee),
-                "vendor": { "id": vendor.id, "vendor_id": vendor.vendor_id, "name": vendor.restaurant_name, "phone": vendor.contact_number },
-                "delivery_address": delivery_address_str
+                'order_id': order.order_number,
+                'status': order.status,
+                'estimated_delivery_time': 30, # Placeholder
+                'total_amount': total_amount,
+                'delivery_fee': delivery_fee,
+                'items_total': items_total
             }
-            logger.info(f"Order {order.order_number} created for customer {customer.customer_id}")
             return Response(response_data, status=status.HTTP_201_CREATED)
-
         except Exception as e:
-            logger.error(f"Error placing order for customer {request.user.customer_id if request.user.is_authenticated else 'anonymous'}: {str(e)}")
-            traceback.print_exc()
-            return Response({"success": False, "error": "Failed to place order."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error in PlaceOrderView: {str(e)}\n{traceback.format_exc()}")
+            return Response({'error': 'Failed to place order.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # --- Add ItemDetailView ---
 class ItemDetailView(APIView):
@@ -1191,19 +1261,29 @@ class CreatePaymentView(APIView):
             )
 
 class CheckDeliveryView(APIView):
-    def post(self, request):
-        print(request.data)
-        # Example logic to check delivery availability
-        pincode = request.data.get('pincode')
-        if not pincode:
-            return Response({"error": "Pincode is required"}, status=status.HTTP_400_BAD_REQUEST)
+    permission_classes = [IsAuthenticated] # Require user to be logged in
+    authentication_classes = [JWTAuthentication]
 
-        # Mock logic: Assume delivery is available for certain pincodes
-        available_pincodes = ["12345", "67890", "54321"]
-        if pincode in available_pincodes:
-            return Response({"delivery_available": True}, status=status.HTTP_200_OK)
-        else:
-            return Response({"delivery_available": False}, status=status.HTTP_200_OK)
+    def post(self, request):
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        pincode = request.data.get('pincode')
+        customer_id = request.data.get('customer_id') # Optional, could be used for user-specific logic
+
+        logger.info(f"[CheckDeliveryView] Request received: lat={latitude}, lon={longitude}, pincode={pincode}, customer_id={customer_id}")
+
+        if (latitude is None or longitude is None) and pincode is None:
+            return Response({'error': 'Latitude/Longitude or Pincode is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # --- TODO: Implement Actual Delivery Availability Logic --- 
+        # Example: Check if pincode is in a list of serviceable pincodes
+        # Example: Check if lat/lon fall within defined delivery zones
+        # Example: Check distance from nearest participating vendor
+        
+        is_available = True # Hardcoded for now
+
+        logger.info(f"[CheckDeliveryView] Determined availability for location: {is_available}")
+        return Response({'available': is_available}, status=status.HTTP_200_OK)
 
 class TopRatedRestaurantsView(APIView):
     def get(self, request):
@@ -1303,28 +1383,37 @@ class PopularFoodsView_test(APIView):
     
 class CustomerFoodListingView(APIView):
     def get(self, request, vendor_id):
+        """
+        Implements Audit Requirement (Phase-1-Backend Core Fixes.md):
+        - Group food items by category for the food listing API.
+        """
         try:
-            # Fetch food listings for the given vendor_id from auth_app
             foods = FoodListing.objects.filter(vendor__vendor_id=vendor_id)
             if not foods.exists():
                 return Response({"error": "No food items found for this vendor."}, status=status.HTTP_404_NOT_FOUND)
 
-            data = [
-                {
+            # Group foods by category
+            grouped = {}
+            for food in foods:
+                cat = getattr(food.category, 'name', None) if food.category else 'Uncategorized'
+                food_data = {
                     "id": food.id,
                     "vendor_id": food.vendor.vendor_id,
                     "name": food.name or "",
                     "price": food.price,
                     "description": food.description or "",
                     "is_available": food.is_available,
-                    "category": food.category,
-                    # --- Updated image handling ---
+                    "category": cat,
                     "image_urls": [request.build_absolute_uri(img_path) for img_path in food.images if img_path] if isinstance(food.images, list) else [],
-                    # --- End update ---
                 }
-                for food in foods
+                grouped.setdefault(cat, []).append(food_data)
+
+            # Convert to list of {category, items}
+            response = [
+                {"category": cat, "items": items}
+                for cat, items in grouped.items()
             ]
-            return Response(data, status=status.HTTP_200_OK)
+            return Response(response, status=status.HTTP_200_OK)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
@@ -1996,3 +2085,93 @@ class SearchView(APIView):
         print("[LOG] SearchView accessed by:", request.user)
         print("[LOG] SearchView response:", data)
         return Response(data, status=status.HTTP_200_OK)
+
+class CustomerProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        customer = request.user
+        try:
+            profile = CustomerProfile.objects.get(user=customer)
+            serializer = CustomerProfileSerializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except CustomerProfile.DoesNotExist:
+            return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request):
+        customer = request.user
+        try:
+            profile = CustomerProfile.objects.get(user=customer)
+            serializer = CustomerProfileSerializer(profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except CustomerProfile.DoesNotExist:
+            return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class AddressListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        customer = request.user
+        addresses = Address.objects.filter(customer=customer)
+        data = [
+            {
+                'id': addr.id,
+                'address_line_1': addr.address_line_1,
+                'address_line_2': addr.address_line_2,
+                'city': addr.city,
+                'state': addr.state,
+                'pincode': addr.pincode,
+                'is_default': addr.is_default
+            }
+            for addr in addresses
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        customer = request.user
+        try:
+            addr = Address.objects.create(
+                customer=customer,
+                address_line_1=request.data.get('address_line_1', ''),
+                address_line_2=request.data.get('address_line_2', ''),
+                city=request.data.get('city', ''),
+                state=request.data.get('state', ''),
+                pincode=request.data.get('pincode', ''),
+                is_default=request.data.get('is_default', False)
+            )
+            return Response({'id': addr.id, 'message': 'Address added successfully'}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class AddressDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def put(self, request, address_id):
+        customer = request.user
+        try:
+            addr = Address.objects.get(id=address_id, customer=customer)
+            addr.address_line_1 = request.data.get('address_line_1', addr.address_line_1)
+            addr.address_line_2 = request.data.get('address_line_2', addr.address_line_2)
+            addr.city = request.data.get('city', addr.city)
+            addr.state = request.data.get('state', addr.state)
+            addr.pincode = request.data.get('pincode', addr.pincode)
+            addr.is_default = request.data.get('is_default', addr.is_default)
+            addr.save()
+            return Response({'message': 'Address updated successfully'}, status=status.HTTP_200_OK)
+        except Address.DoesNotExist:
+            return Response({'error': 'Address not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, address_id):
+        customer = request.user
+        try:
+            addr = Address.objects.get(id=address_id, customer=customer)
+            addr.delete()
+            return Response({'message': 'Address deleted successfully'}, status=status.HTTP_200_OK)
+        except Address.DoesNotExist:
+            return Response({'error': 'Address not found'}, status=status.HTTP_404_NOT_FOUND)

@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../authentication/auth_screen.dart';
 import '../mainScreens/home_screen.dart';
 import '../providers/auth_provider.dart';
-import '../services/api_service.dart';
 
 class MySplashScreen extends StatefulWidget {
   const MySplashScreen({super.key});
@@ -15,49 +14,57 @@ class MySplashScreen extends StatefulWidget {
 }
 
 class _MySplashScreenState extends State<MySplashScreen> {
-  final ApiService _apiService = ApiService();
-
-  startTimer() {
-    Timer(const Duration(seconds: 2), () async {
-      bool isValidToken = await _apiService.checkAuthStatus();
-
-      if (!mounted) return;
-
-      if (isValidToken) {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()));
-      } else {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const AuthScreen()));
-      }
-    });
-  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider._loadAuthState();
-      if (!authProvider.isAuthenticated) {
-        await authProvider.requestOtpAndLoginIfNeeded(context);
-      }
-      startTimer();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthAndNavigate();
     });
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    if (!mounted) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      debugPrint('[SplashScreen] Waiting for AuthProvider initialization...');
+      await authProvider.initializationComplete;
+      debugPrint('[SplashScreen] AuthProvider initialized. IsAuthenticated: ${authProvider.isAuthenticated}');
+
+      if (!mounted) return;
+
+      if (authProvider.isAuthenticated) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
+    } catch (e) {
+      debugPrint('[SplashScreen] Error during AuthProvider initialization: $e');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Use Theme colors
     final ThemeData theme = Theme.of(context);
     final Color primaryColor = theme.primaryColor;
     final Color backgroundColor = theme.scaffoldBackgroundColor;
-    final Color textColor = theme.textTheme.bodyMedium?.color ?? Colors.black; // Fallback
+    final Color textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
 
     return Material(
-      // Use scaffoldBackgroundColor from the theme
       color: backgroundColor,
       child: Center(
         child: Column(
@@ -71,29 +78,29 @@ class _MySplashScreenState extends State<MySplashScreen> {
               height: 10,
             ),
             Padding(
-              padding: const EdgeInsets.all(18.0), // Adjusted padding
+              padding: const EdgeInsets.all(18.0),
               child: Column(
                 children: [
                   Text(
-                    'Order Food Online With iFood', // Consider changing iFood if brand is FoodOnDoor
+                    'Order Food Online With iFood',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: primaryColor, // Use theme's primary color
-                      fontSize: 22, // Slightly larger
+                      color: primaryColor,
+                      fontSize: 22,
                       fontFamily: "Train",
-                      fontWeight: FontWeight.bold, // Make it bolder
-                      letterSpacing: 2, // Adjusted spacing
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
                     ),
                   ),
-                  const SizedBox(height: 8), // Spacing between texts
+                  const SizedBox(height: 8),
                   Text(
                     "World's Largest & No.1 Food Delivery App",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: textColor, // Use theme's default text color
-                      fontSize: 18, // Adjusted size
+                      color: textColor,
+                      fontSize: 18,
                       fontFamily: "Signatra",
-                      letterSpacing: 2, // Adjusted spacing
+                      letterSpacing: 2,
                     ),
                   ),
                 ],

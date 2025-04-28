@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import '../global/global.dart'; // For sharedPreferences
+import 'package:provider/provider.dart';
+import '../global/global.dart';
 import '../mainScreens/home_screen.dart';
-import '../services/api_service.dart'; // Assuming ApiService exists
+import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../widgets/loading_dialog.dart';
-import 'register.dart'; // Import the next screen
+import 'register.dart';
 
 class OtpScreen extends StatefulWidget {
   final String phoneNumber;
@@ -48,11 +50,11 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _resendOtp() async {
-    setState(() { _isLoading = true; });
     showDialog(
         context: context,
         barrierDismissible: false,
         builder: (c) => LoadingDialog(message: "Resending OTP..."));
+    setState(() { _isLoading = true; });
     try {
       final response = await _apiService.sendOtp(widget.phoneNumber);
       Navigator.pop(context);
@@ -78,51 +80,42 @@ class _OtpScreenState extends State<OtpScreen> {
           barrierDismissible: false,
           builder: (c) => LoadingDialog(message: "Verifying OTP..."));
 
-      try {
-        final response = await _apiService.verifyOtp(widget.phoneNumber, otpController.text.trim());
-        Navigator.pop(context); // Dismiss loading
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-        if (response['success'] == true || (response.containsKey('message') && response['message'] == 'Please complete signup')) { // Check for success or signup message
-          if (response['is_signup'] == true) {
-            // Navigate to RegisterScreen (was MinimalSignupScreen)
-             Fluttertoast.showToast(msg: "OTP Verified. Please complete signup.");
-             Navigator.pushReplacement(
-               context,
-               MaterialPageRoute(builder: (c) => RegisterScreen(phone: widget.phoneNumber)), // Use correct class name
-             );
-          } else {
-            // Login Success
-            if (response.containsKey('auth_token')) {
-               await _apiService.storeToken(response['auth_token']);
-               // Store user details if present
-               if (response.containsKey('user')) {
-                 final userData = response['user'] as Map<String, dynamic>;
-                 await sharedPreferences!.setString("uid", userData['user_id']?.toString() ?? '');
-                 await sharedPreferences!.setString("name", userData['full_name'] ?? '');
-                 await sharedPreferences!.setString("email", userData['email'] ?? '');
-                 await sharedPreferences!.setString("phone", userData['phone'] ?? widget.phoneNumber);
-               } else {
-                 await sharedPreferences!.setString("uid", response['user_id']?.toString() ?? '');
-                 await sharedPreferences!.setString("phone", widget.phoneNumber);
-               }
-               Fluttertoast.showToast(msg: "Login Successful.");
-               Navigator.pushReplacement(
-                 context,
-                 MaterialPageRoute(builder: (c) => const HomeScreen()),
-               );
+      try {
+        final result = await authProvider.verifyOtp(
+            widget.phoneNumber, otpController.text.trim());
+
+        Navigator.pop(context);
+
+        if (result != null) {
+          if (result['success'] == 'true') {
+            if (result['is_signup'] == 'true') {
+              Fluttertoast.showToast(msg: "OTP Verified. Please complete signup.");
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (c) => RegisterScreen(phone: widget.phoneNumber)),
+              );
             } else {
-               setState(() { _isLoading = false; });
-               Fluttertoast.showToast(msg: "Login failed: Missing token or user data.");
+              Fluttertoast.showToast(msg: "Login Successful.");
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (c) => const HomeScreen()),
+                (route) => false,
+              );
             }
+          } else {
+            setState(() { _isLoading = false; });
+            Fluttertoast.showToast(msg: "Error: ${result['error'] ?? 'Invalid OTP or verification failed'}");
           }
         } else {
-           setState(() { _isLoading = false; });
-           Fluttertoast.showToast(msg: "Error: ${response['error'] ?? 'Invalid OTP or verification failed'}");
+          setState(() { _isLoading = false; });
+          Fluttertoast.showToast(msg: "Verification failed: No response from server.");
         }
       } catch (e) {
-        Navigator.pop(context); // Dismiss loading on error
+        Navigator.pop(context);
         setState(() { _isLoading = false; });
-        Fluttertoast.showToast(msg: "Error: ${e.toString()}");
+        Fluttertoast.showToast(msg: "Verification Error: ${e.toString()}");
       }
     }
   }
@@ -145,7 +138,6 @@ class _OtpScreenState extends State<OtpScreen> {
                 Text(
                   "Enter OTP sent to ${widget.phoneNumber}",
                   textAlign: TextAlign.center,
-                  // Apply theme text style
                   style: theme.textTheme.titleMedium?.copyWith(color: theme.textTheme.bodyMedium?.color),
                 ),
                 const SizedBox(height: 30),
@@ -153,11 +145,11 @@ class _OtpScreenState extends State<OtpScreen> {
                   controller: otpController,
                   keyboardType: TextInputType.number,
                   textAlign: TextAlign.center,
-                  maxLength: 6, // Typical OTP length
+                  maxLength: 6,
                   style: const TextStyle(fontSize: 24, letterSpacing: 10),
                   decoration: const InputDecoration(
                     hintText: "------",
-                    counterText: "", // Hide the counter
+                    counterText: "",
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
@@ -165,7 +157,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       return 'Please enter the OTP';
                     }
                     if (value.length != 6) {
-                       return 'OTP must be 6 digits';
+                      return 'OTP must be 6 digits';
                     }
                     return null;
                   },
@@ -173,24 +165,18 @@ class _OtpScreenState extends State<OtpScreen> {
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _verifyOtp,
-                  // Remove explicit style to inherit from theme
-                  // style: ElevatedButton.styleFrom(
-                  //     backgroundColor: Colors.cyan,
-                  //     padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  //     textStyle: const TextStyle(fontSize: 18)),
                   child: _isLoading
                       ? const SizedBox(child: CircularProgressIndicator(color: Colors.white), height: 24, width: 24)
-                      // Use Text widget directly to allow theme's ElevatedButton style to control text style
                       : const Text("Verify OTP"),
                 ),
-                 const SizedBox(height: 20),
-                 TextButton(
-                    onPressed: (_resendSeconds > 0 || _isLoading) ? null : _resendOtp,
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.primaryColor,
-                    ),
-                    child: Text(_resendSeconds > 0 ? "Resend OTP ($_resendSeconds s)" : "Resend OTP?"),
-                 )
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: (_resendSeconds > 0 || _isLoading) ? null : _resendOtp,
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.primaryColor,
+                  ),
+                  child: Text(_resendSeconds > 0 ? "Resend OTP ($_resendSeconds s)" : "Resend OTP?"),
+                )
               ],
             ),
           ),

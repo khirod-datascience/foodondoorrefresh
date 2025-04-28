@@ -502,3 +502,101 @@ INFO 2025-04-27 13:55:20,659 views 11452 14768 OTP for 8908168688: 434941
 OTP for 8908168688: 434941
 INFO 2025-04-27 13:57:13,316 views 11452 7548 [VerifyOTP] OTP verification attempt for phone: 8908168688
 [VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-27 17:28:54,084 views 9940 10524 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-27 17:28:55,566 views 9940 10524 OTP for 8908168688: 519426
+OTP for 8908168688: 519426
+INFO 2025-04-27 17:29:08,915 views 9940 12600 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-27 17:32:38,587 views 9940 15032 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-27 17:32:38,589 views 9940 15032 OTP for 8908168688: 166411
+OTP for 8908168688: 166411
+INFO 2025-04-27 17:32:47,671 views 9940 12996 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-27 17:40:31,253 views 9940 12176 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-27 17:40:31,255 views 9940 12176 OTP for 8908168688: 789239
+OTP for 8908168688: 789239
+INFO 2025-04-27 17:40:42,761 views 9940 10840 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-27 17:51:33,893 views 9940 6472 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-27 17:51:33,938 views 9940 6472 OTP for 8908168688: 497763
+OTP for 8908168688: 497763
+INFO 2025-04-27 17:51:51,679 views 9940 13752 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-27 23:19:44,549 views 8288 4420 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-27 23:19:44,720 views 8288 4420 OTP for 8908168688: 523322
+OTP for 8908168688: 523322
+INFO 2025-04-27 23:19:52,560 views 8288 10520 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-27 23:20:31,438 views 8288 10268 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-27 23:20:31,441 views 8288 10268 OTP for 8908168688: 898880
+OTP for 8908168688: 898880
+INFO 2025-04-27 23:20:41,316 views 8288 10256 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 00:10:06,591 views 8288 10432 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 00:10:06,594 views 8288 10432 OTP for 8908168688: 764085
+OTP for 8908168688: 764085
+INFO 2025-04-28 00:10:32,309 views 8288 9760 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 00:17:52,522 views 8288 9044 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 00:17:52,524 views 8288 9044 OTP for 8908168688: 412491
+OTP for 8908168688: 412491
+INFO 2025-04-28 00:18:02,715 views 8288 11136 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 00:18:10,609 views 8288 256 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+WARNING 2025-04-28 00:18:10,613 views 8288 256 OTP verification failed for 8908168688: OTP expired or not found.
+OTP verification failed for 8908168688: OTP expired or not found.
+INFO 2025-04-28 00:20:12,190 views 8288 2616 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 00:20:12,193 views 8288 2616 OTP for 8908168688: 330506
+OTP for 8908168688: 330506
+INFO 2025-04-28 00:20:19,293 views 8288 10908 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 00:25:14,757 views 8288 6916 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 00:25:14,759 views 8288 6916 OTP for 8908168688: 543624
+OTP for 8908168688: 543624
+INFO 2025-04-28 00:25:33,496 views 8288 8604 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 00:27:49,335 views 8288 4148 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 00:27:49,602 views 8288 4148 OTP for 8908168688: 470578
+OTP for 8908168688: 470578
+INFO 2025-04-28 00:27:56,964 views 8288 1796 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 00:30:26,822 views 8288 11892 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 00:30:26,824 views 8288 11892 OTP for 8908168688: 976612
+OTP for 8908168688: 976612
+INFO 2025-04-28 00:30:34,929 views 8288 10060 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 07:25:38,093 views 380 12112 [SendOTP] OTP request received for phone: 8908168688
+[SendOTP] OTP request received for phone: 8908168688
+INFO 2025-04-28 07:25:38,229 views 380 12112 OTP for 8908168688: 536871
+OTP for 8908168688: 536871
+INFO 2025-04-28 07:25:47,192 views 380 10832 [VerifyOTP] OTP verification attempt for phone: 8908168688
+[VerifyOTP] OTP verification attempt for phone: 8908168688
+INFO 2025-04-28 07:25:49,984 views 380 10868 [CheckDeliveryView] Request received: lat=12.9536207, lon=77.6974994, pincode=None, customer_id=1
+[CheckDeliveryView] Request received: lat=12.9536207, lon=77.6974994, pincode=None, customer_id=1
+INFO 2025-04-28 07:25:50,029 views 380 10868 [CheckDeliveryView] Determined availability for location: True
+[CheckDeliveryView] Determined availability for location: True
+INFO 2025-04-28 07:48:51,061 views 380 3552 [CheckDeliveryView] Request received: lat=12.953608, lon=77.6974951, pincode=None, customer_id=1
+[CheckDeliveryView] Request received: lat=12.953608, lon=77.6974951, pincode=None, customer_id=1
+INFO 2025-04-28 07:48:51,105 views 380 3552 [CheckDeliveryView] Determined availability for location: True
+[CheckDeliveryView] Determined availability for location: True
+INFO 2025-04-28 07:50:58,014 views 1844 10944 [CheckDeliveryView] Request received: lat=12.9535758, lon=77.6974863, pincode=None, customer_id=1
+[CheckDeliveryView] Request received: lat=12.9535758, lon=77.6974863, pincode=None, customer_id=1
+INFO 2025-04-28 07:50:58,014 views 1844 10944 [CheckDeliveryView] Determined availability for location: True
+[CheckDeliveryView] Determined availability for location: True
+INFO 2025-04-28 07:57:21,616 views 1844 7016 [CheckDeliveryView] Request received: lat=12.9536357, lon=77.6974947, pincode=None, customer_id=1
+[CheckDeliveryView] Request received: lat=12.9536357, lon=77.6974947, pincode=None, customer_id=1
+INFO 2025-04-28 07:57:21,616 views 1844 7016 [CheckDeliveryView] Determined availability for location: True
+[CheckDeliveryView] Determined availability for location: True

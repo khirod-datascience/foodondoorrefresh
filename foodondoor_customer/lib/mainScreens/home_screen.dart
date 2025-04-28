@@ -414,22 +414,31 @@ class _HomeScreenState extends State<HomeScreen> {
                         scrollDirection: Axis.horizontal,
                         itemCount: homeProvider.banners.length,
                         itemBuilder: (context, index) {
+                          // Extract banner data (now a Map)
+                          final bannerData = homeProvider.banners[index];
+                          // Get the image URL, provide default if null/empty
+                          final imageUrl = bannerData['image']?.toString() ?? 
+                                             'https://placehold.co/600x200/EAEAEA/6D6D6D.png?text=Banner+Error';
+
                           return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(12.0),
                               child: Image.network(
-                                homeProvider.banners[index],
+                                imageUrl, // Use the extracted URL
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 280,
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child: Icon(Icons.error_outline),
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                          : null,
                                     ),
                                   );
                                 },
+                                errorBuilder: (context, error, stackTrace) => 
+                                  Image.asset('assets/images/placeholder.png', fit: BoxFit.cover), // Fallback image
                               ),
                             ),
                           );

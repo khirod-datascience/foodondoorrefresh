@@ -155,59 +155,28 @@ CACHES = {
     }
 }
 
-
-# Logging configuration
+# --- Add Minimal Logging Config --- NEW
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {asctime} {message}',
-            'style': '{',
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
         },
     },
-    'handlers': {
-        'vendor_file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': 'logs/vendor_app.log',
-            'formatter': 'verbose',
-        },
-        'customer_file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': 'logs/customer_app.log',
-            'formatter': 'verbose',
-        },
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.FileHandler',
-            'filename': 'logs/customer_app.log',
-        },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO', # Capture standard request logs
     },
     'loggers': {
-        'auth_app': {  # Vendor app logger
-            'handlers': ['vendor_file', 'console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-        'customer_app': {  # Customer app logger
-            'handlers': ['customer_file', 'console', 'file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
-        'django': { # Optional: Log Django specific messages
+        'django.server': { # Specifically target the development server logs
             'handlers': ['console'],
             'level': 'INFO',
+            'propagate': False,
+        },
+         'django.request': { # Also capture request/response handling logs
+            'handlers': ['console'],
+            'level': 'DEBUG', # More verbose for request issues
             'propagate': False,
         },
     },

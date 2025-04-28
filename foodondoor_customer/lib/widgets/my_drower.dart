@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../authentication/auth_screen.dart';
 import '../global/global.dart';
 import '../mainScreens/address_screen.dart';
@@ -6,7 +7,7 @@ import '../mainScreens/history_screen.dart';
 import '../mainScreens/home_screen.dart';
 import '../mainScreens/my_orders_screen.dart';
 import '../mainScreens/search_screen.dart';
-import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 
 class MyDrawer extends StatelessWidget {
   const MyDrawer({super.key});
@@ -183,14 +184,16 @@ class MyDrawer extends StatelessWidget {
                     style: TextStyle(color: Colors.black),
                   ),
                   onTap: () async {
-                    Navigator.pop(context);
-                    final apiService = ApiService();
-                    await apiService.deleteToken();
-
+                    Navigator.pop(context); // Close drawer
+                    // Use AuthProvider for logout
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    await authProvider.logout();
+                    
+                    // Navigate to AuthScreen and remove back stack
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => const AuthScreen()),
-                      (route) => false,
+                      (route) => false, 
                     );
                   },
                 ),
